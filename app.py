@@ -37,50 +37,47 @@ def main() -> int:
             msg.exec()
         return 0
 
-    # 2. Core services initialization
-    logger, memory_handler = setup_app_logger()
-    logger.info("Iniciando ProcessHunter GUI...")
+    try:
+        # 2. Core services initialization
+        logger, _ = setup_app_logger()
+        logger.info("Iniciando ProcessHunter GUI...")
 
-    config_manager = ConfigManager()
-    config_manager.load()
+        config_manager = ConfigManager()
+        config_manager.load()
 
-    hunter = ProcessHunter()
-    autostart = WindowsAutostart(app_name="ProcessHunter")
+        hunter = ProcessHunter()
+        autostart = WindowsAutostart(app_name="ProcessHunter")
 
-    # 3. UI setup
-    tray_icon = HunterTrayIcon()
-    main_window = MainWindow(
-        config_manager=config_manager,
-        hunter=hunter,
-        autostart=autostart,
-        tray_icon=tray_icon
-    )
+        # 3. UI setup
+        tray_icon = HunterTrayIcon()
+        main_window = MainWindow(
+            config_manager=config_manager,
+            hunter=hunter,
+            autostart=autostart,
+            tray_icon=tray_icon,
+            logger=logger
+        )
 
-    # Connect logger to UI log view
-    memory_handler.register_callback(
-        lambda event: main_window.append_log_message(event.level, event.message)
-    )
+        tray_icon.show()
 
-    tray_icon.show()
+        # 4. Show or start minimized
+        if args.minimized:
+            logger.info("ProcessHunter iniciado minimizado com o Windows.")
+            # Automatically activate sentinel on Windows boot
+            main_window.toggle_sentinel()
+            if config_manager.config.notify_on_kill:
+                tray_icon.showMessage(
+                    "ProcessHunter",
+                    "ProcessHunter iniciado e monitorando em segundo plano.",
+                    HunterTrayIcon.MessageIcon.Information,
+                    2000
+                )
+        else:
+            main_window.show()
 
-    # 4. Show or start minimized
-    if args.minimized:
-        logger.info("ProcessHunter iniciado minimizado com o Windows.")
-        # Automatically activate sentinel on Windows boot
-        main_window.toggle_sentinel()
-        if config_manager.config.notify_on_kill:
-            tray_icon.showMessage(
-                "ProcessHunter",
-                "ProcessHunter iniciado e monitorando em segundo plano.",
-                HunterTrayIcon.MessageIcon.Information,
-                2000
-            )
-    else:
-        main_window.show()
-
-    exit_code = app.exec()
-    lock_file.unlock()
-    return exit_code
+        return app.exec()
+    finally:
+        lock_file.unlock()
 
 
 if __name__ == "__main__":

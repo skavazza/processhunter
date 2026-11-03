@@ -75,3 +75,19 @@ def test_corrupted_json_recovery(tmp_path: Path):
     assert bak_file.exists()
     assert "{invalid json" in bak_file.read_text(encoding="utf-8")
     assert cfg_file.exists()
+
+
+def test_get_active_targets_snapshot(tmp_path: Path):
+    cfg_file = tmp_path / "config.json"
+    manager = ConfigManager(config_path=cfg_file)
+    manager.load()
+
+    manager.add_target("target1")
+    manager.add_target("target2")
+    manager.toggle_target("target2", False)
+
+    active = manager.get_active_targets()
+    assert "target1" in active
+    assert "msedgewebview2d" in active
+    assert "target2" not in active
+

@@ -1,13 +1,16 @@
 from __future__ import annotations
+import logging
 import os
 import subprocess
 import sys
+from pathlib import Path
 from typing import List, Optional
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QCloseEvent, QFont, QIcon
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
-    QLabel, QTextEdit, QCheckBox, QSpinBox, QSplitter, QMessageBox, QFrame
+    QLabel, QTextEdit, QCheckBox, QSpinBox, QSplitter, QMessageBox, QFrame,
+    QApplication
 )
 from core.config import ConfigManager, normalize_target_name
 from core.hunter import ProcessHunter, ProcessInfo, KillResult
@@ -26,6 +29,7 @@ class MainWindow(QMainWindow):
         hunter: ProcessHunter,
         autostart: WindowsAutostart,
         tray_icon: Optional[HunterTrayIcon] = None,
+        logger: Optional[logging.Logger] = None,
         parent=None
     ) -> None:
         super().__init__(parent)
@@ -33,6 +37,7 @@ class MainWindow(QMainWindow):
         self.hunter = hunter
         self.autostart = autostart
         self.tray_icon = tray_icon
+        self.logger = logger or logging.getLogger("ProcessHunter")
         self._is_force_exit = False
 
         self.setWindowTitle("ProcessHunter - Gerenciador de Processos")
@@ -250,7 +255,7 @@ class MainWindow(QMainWindow):
         self.append_log_message("ERROR", f"Falha ao listar processos: {error}")
 
     def hunt_now(self) -> None:
-        active_targets = [t.name for t in self.config_manager.config.targets if t.enabled]
+        active_targets = self.config_manager.get_active_targets()
         if not active_targets:
             self.append_log_message("WARNING", "Nenhum alvo ativo configurado para caçar.")
             return
@@ -258,7 +263,6 @@ class MainWindow(QMainWindow):
         self.append_log_message("INFO", f"Iniciando caçada manual de {len(active_targets)} alvos...")
         results = self.hunter.kill_targets(active_targets)
         self._on_hunt_completed(results)
-        # Refresh process table right after kill
         QTimer.singleShot(500, self.refresh_active_processes)
 
     def toggle_sentinel(self) -> None:
@@ -314,8 +318,10 @@ class MainWindow(QMainWindow):
                 msg = f"FALHA: Não foi possível encerrar '{r.name}' (PID: {r.pid}). {r.error_message}"
                 self.append_log_message("ERROR", msg)
 
-        if success_count > 0 and self.config_manager.config.notify_on_kill and self.tray_icon:
-            self.tray_icon.notify_kill(results)
+        if success_count > 0:
+            QTimer.singleShot(500, self.refresh_active_processes)
+            if self.config_manager.config.notify_on_kill and self.tray_icon:
+                self.tray_icon.notify_kill(results)
 
     def _on_target_added(self, name: str) -> None:
         if self.config_manager.add_target(name):
@@ -333,6 +339,7 @@ class MainWindow(QMainWindow):
 
     def _on_target_toggled(self, name: str, enabled: bool) -> None:
         self.config_manager.toggle_target(name, enabled)
+        self.target_list_widget.set_targets(self.config_manager.config.targets)
         status_str = "ativado" if enabled else "desativado"
         self.append_log_message("INFO", f"Alvo '{name}' {status_str}.")
 
@@ -377,6 +384,16 @@ class MainWindow(QMainWindow):
         html = f"<span style='color: {color};'><b>[{level.upper()}]</b> {message}</span>"
         self.log_view.append(html)
 
+        # Write to physical logger as well
+        if self.logger:
+            lvl = level.upper()
+            if lvl in ("ERROR", "FALHA"):
+                self.logger.error(message)
+            elif lvl in ("WARNING", "AVISO"):
+                self.logger.warning(message)
+            else:
+                self.logger.info(message)
+
     def _clear_log(self) -> None:
         self.log_view.clear()
 
@@ -408,6 +425,9 @@ class MainWindow(QMainWindow):
                 self.sentinel_worker.stop()
                 self.sentinel_worker.wait(1000)
             event.accept()
+            app = QApplication.instance()
+            if app:
+                app.quit()
         else:
             event.ignore()
             self.hide()

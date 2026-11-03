@@ -51,3 +51,61 @@ def test_main_window_init_and_components(qapp, tmp_path: Path):
     window.closeEvent(close_event)
     assert close_event.isAccepted() is False
     assert window.isVisible() is False
+
+
+def test_force_exit_quits_qapplication(qapp, tmp_path: Path):
+    cfg_file = tmp_path / "config.json"
+    config_manager = ConfigManager(config_path=cfg_file)
+    config_manager.load()
+
+    hunter = MagicMock(spec=ProcessHunter)
+    autostart = MagicMock(spec=WindowsAutostart)
+
+    window = MainWindow(config_manager=config_manager, hunter=hunter, autostart=autostart)
+
+    quit_mock = MagicMock()
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(qapp, "quit", quit_mock)
+        window.force_exit()
+        quit_mock.assert_called_once()
+
+
+def test_close_event_quits_when_minimize_disabled(qapp, tmp_path: Path):
+    cfg_file = tmp_path / "config.json"
+    config_manager = ConfigManager(config_path=cfg_file)
+    config_manager.load()
+    config_manager.config.minimize_to_tray_on_close = False
+
+    hunter = MagicMock(spec=ProcessHunter)
+    autostart = MagicMock(spec=WindowsAutostart)
+
+    window = MainWindow(config_manager=config_manager, hunter=hunter, autostart=autostart)
+
+    quit_mock = MagicMock()
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(qapp, "quit", quit_mock)
+        close_event = QCloseEvent()
+        window.closeEvent(close_event)
+        assert close_event.isAccepted() is True
+        quit_mock.assert_called_once()
+
+
+def test_main_window_logs_to_logger(qapp, tmp_path: Path):
+    cfg_file = tmp_path / "config.json"
+    config_manager = ConfigManager(config_path=cfg_file)
+    config_manager.load()
+
+    mock_logger = MagicMock()
+    hunter = MagicMock(spec=ProcessHunter)
+    autostart = MagicMock(spec=WindowsAutostart)
+
+    window = MainWindow(
+        config_manager=config_manager,
+        hunter=hunter,
+        autostart=autostart,
+        logger=mock_logger
+    )
+
+    window.append_log_message("SUCCESS", "Processo encerrado com sucesso")
+    mock_logger.info.assert_called_with("Processo encerrado com sucesso")
+

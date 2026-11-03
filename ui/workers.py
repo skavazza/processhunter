@@ -54,9 +54,7 @@ class SentinelWorker(QThread):
             return self._is_running
 
     def hunt_step(self) -> List[KillResult]:
-        active_targets = [
-            t.name for t in self.config_manager.config.targets if t.enabled
-        ]
+        active_targets = self.config_manager.get_active_targets()
         if not active_targets:
             return []
 
