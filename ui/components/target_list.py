@@ -21,15 +21,21 @@ class TargetListWidget(QWidget):
 
     def _init_ui(self) -> None:
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(5, 5, 5, 5)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(8)
 
-        title_label = QLabel("<b>Alvos do Hunter (Processos a Encerrar)</b>")
+        title_label = QLabel("Alvos do Hunter (Processos a Encerrar)")
+        title_label.setProperty("heading", "true")
         layout.addWidget(title_label)
+
+        subtitle_label = QLabel("Processos monitorados para encerramento automático.")
+        subtitle_label.setProperty("subtitle", "true")
+        layout.addWidget(subtitle_label)
 
         # Add target input row
         input_layout = QHBoxLayout()
         self.input_target = QLineEdit()
-        self.input_target.setPlaceholderText("Digite o nome (ex: spotify.exe)...")
+        self.input_target.setPlaceholderText("Digite o nome do executável (ex: spotify.exe)...")
         self.input_target.returnPressed.connect(self._on_add_clicked)
         input_layout.addWidget(self.input_target)
 
@@ -44,6 +50,7 @@ class TargetListWidget(QWidget):
         self.table.setHorizontalHeaderLabels(["Ativo", "Processo Alvo", "Ações"])
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.table.verticalHeader().setVisible(False)
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
@@ -51,6 +58,7 @@ class TargetListWidget(QWidget):
         layout.addWidget(self.table)
 
         self.summary_label = QLabel("0 alvos configurados")
+        self.summary_label.setProperty("subtitle", "true")
         layout.addWidget(self.summary_label)
 
     def set_targets(self, targets: List[TargetItem]) -> None:
@@ -80,6 +88,18 @@ class TargetListWidget(QWidget):
             btn_del = QPushButton("🗑️")
             btn_del.setToolTip("Remover alvo")
             btn_del.setFixedWidth(36)
+            btn_del.setStyleSheet("""
+                QPushButton {
+                    background-color: #383838;
+                    border: 1px solid #4a4a4a;
+                    border-radius: 3px;
+                    padding: 2px 4px;
+                }
+                QPushButton:hover {
+                    background-color: #552828;
+                    border-color: #883a3a;
+                }
+            """)
             # Capture current target name
             target_name = t.name
             btn_del.clicked.connect(lambda checked=False, name=target_name: self.target_removed.emit(name))

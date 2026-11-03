@@ -20,6 +20,11 @@ from ui.components.process_table import ProcessTableWidget
 from ui.components.target_list import TargetListWidget
 from ui.workers import SentinelWorker, ProcessScannerWorker
 from ui.tray import HunterTrayIcon, create_tray_pixmap
+from ui.theme import (
+    apply_dark_title_bar,
+    STYLE_SENTINEL_PAUSED,
+    STYLE_SENTINEL_ACTIVE,
+)
 
 
 class MainWindow(QMainWindow):
@@ -55,6 +60,7 @@ class MainWindow(QMainWindow):
         self._init_ui()
         self._connect_signals()
         self._load_initial_data()
+        apply_dark_title_bar(self)
 
     def _init_ui(self) -> None:
         central_widget = QWidget(self)
@@ -65,50 +71,31 @@ class MainWindow(QMainWindow):
 
         # 1. Top Header & Control Bar
         header_frame = QFrame()
-        header_frame.setFrameShape(QFrame.Shape.StyledPanel)
-        header_frame.setStyleSheet("""
-            QFrame {
-                background-color: #2b2b2b;
-                border-radius: 6px;
-                padding: 6px;
-            }
-            QLabel { color: #ffffff; }
-        """)
+        header_frame.setObjectName("header_card")
         header_layout = QHBoxLayout(header_frame)
-        header_layout.setContentsMargins(10, 6, 10, 6)
+        header_layout.setContentsMargins(12, 8, 12, 8)
 
-        # Status badge
+        status_vbox = QVBoxLayout()
+        status_vbox.setSpacing(2)
         self.status_badge = QLabel("○ Sentinela: PAUSADA")
         self.status_badge.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-        self.status_badge.setStyleSheet("color: #aaaaaa;")
-        header_layout.addWidget(self.status_badge)
+        self.status_badge.setStyleSheet("color: #9e9e9e;")
+        status_vbox.addWidget(self.status_badge)
+
+        self.status_subtext = QLabel("Monitoramento contínuo em segundo plano")
+        self.status_subtext.setProperty("subtitle", "true")
+        status_vbox.addWidget(self.status_subtext)
+        header_layout.addLayout(status_vbox)
 
         header_layout.addStretch()
 
         self.btn_hunt_now = QPushButton("⚡ Caçar Agora")
-        self.btn_hunt_now.setStyleSheet("""
-            QPushButton {
-                background-color: #d32f2f;
-                color: white;
-                font-weight: bold;
-                padding: 8px 16px;
-                border-radius: 4px;
-            }
-            QPushButton:hover { background-color: #b71c1c; }
-        """)
+        self.btn_hunt_now.setObjectName("btn_hunt_now")
         header_layout.addWidget(self.btn_hunt_now)
 
         self.btn_toggle_sentinel = QPushButton("🛡️ Iniciar Sentinela")
-        self.btn_toggle_sentinel.setStyleSheet("""
-            QPushButton {
-                background-color: #2e7d32;
-                color: white;
-                font-weight: bold;
-                padding: 8px 16px;
-                border-radius: 4px;
-            }
-            QPushButton:hover { background-color: #1b5e20; }
-        """)
+        self.btn_toggle_sentinel.setObjectName("btn_toggle_sentinel")
+        self.btn_toggle_sentinel.setStyleSheet(STYLE_SENTINEL_PAUSED)
         header_layout.addWidget(self.btn_toggle_sentinel)
 
         main_layout.addWidget(header_frame)
@@ -126,11 +113,16 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(splitter, stretch=2)
 
         # 3. Bottom Section: Log and Preferences
-        bottom_layout = QVBoxLayout()
+        bottom_card = QFrame()
+        bottom_card.setObjectName("bottom_card")
+        bottom_layout = QVBoxLayout(bottom_card)
+        bottom_layout.setContentsMargins(10, 8, 10, 8)
+        bottom_layout.setSpacing(8)
 
         # Log bar header
         log_header_layout = QHBoxLayout()
-        log_title = QLabel("<b>Histórico de Atividades & Logs</b>")
+        log_title = QLabel("Histórico de Atividades & Logs")
+        log_title.setProperty("heading", "true")
         log_header_layout.addWidget(log_title)
         log_header_layout.addStretch()
 
@@ -146,18 +138,9 @@ class MainWindow(QMainWindow):
 
         # Log Console
         self.log_view = QTextEdit()
+        self.log_view.setObjectName("log_view")
         self.log_view.setReadOnly(True)
-        self.log_view.setStyleSheet("""
-            QTextEdit {
-                background-color: #1e1e1e;
-                color: #d4d4d4;
-                font-family: Consolas, monospace;
-                font-size: 10pt;
-                border: 1px solid #333333;
-                border-radius: 4px;
-            }
-        """)
-        self.log_view.setMaximumHeight(160)
+        self.log_view.setMaximumHeight(150)
         bottom_layout.addWidget(self.log_view)
 
         # Settings bar
@@ -169,6 +152,7 @@ class MainWindow(QMainWindow):
         settings_layout.addSpacing(20)
 
         interval_label = QLabel("Intervalo da Sentinela:")
+        interval_label.setProperty("subtitle", "true")
         settings_layout.addWidget(interval_label)
 
         self.spin_interval = QSpinBox()
@@ -186,7 +170,7 @@ class MainWindow(QMainWindow):
         settings_layout.addStretch()
         bottom_layout.addLayout(settings_layout)
 
-        main_layout.addLayout(bottom_layout, stretch=1)
+        main_layout.addWidget(bottom_card, stretch=1)
 
     def _connect_signals(self) -> None:
         # Top buttons
@@ -274,32 +258,16 @@ class MainWindow(QMainWindow):
     def _on_sentinel_status_changed(self, is_running: bool) -> None:
         if is_running:
             self.status_badge.setText(f"● Sentinela: ATIVA ({self.config_manager.config.sentinel_interval_seconds}s)")
-            self.status_badge.setStyleSheet("color: #4caf50;")
+            self.status_badge.setStyleSheet("color: #3cd070; font-weight: bold;")
+            self.status_subtext.setText("Monitorando processos ativamente")
             self.btn_toggle_sentinel.setText("⏸️ Pausar Sentinela")
-            self.btn_toggle_sentinel.setStyleSheet("""
-                QPushButton {
-                    background-color: #f57c00;
-                    color: white;
-                    font-weight: bold;
-                    padding: 8px 16px;
-                    border-radius: 4px;
-                }
-                QPushButton:hover { background-color: #e65100; }
-            """)
+            self.btn_toggle_sentinel.setStyleSheet(STYLE_SENTINEL_ACTIVE)
         else:
             self.status_badge.setText("○ Sentinela: PAUSADA")
-            self.status_badge.setStyleSheet("color: #aaaaaa;")
+            self.status_badge.setStyleSheet("color: #9e9e9e; font-weight: bold;")
+            self.status_subtext.setText("Monitoramento contínuo em segundo plano")
             self.btn_toggle_sentinel.setText("🛡️ Iniciar Sentinela")
-            self.btn_toggle_sentinel.setStyleSheet("""
-                QPushButton {
-                    background-color: #2e7d32;
-                    color: white;
-                    font-weight: bold;
-                    padding: 8px 16px;
-                    border-radius: 4px;
-                }
-                QPushButton:hover { background-color: #1b5e20; }
-            """)
+            self.btn_toggle_sentinel.setStyleSheet(STYLE_SENTINEL_PAUSED)
 
         if self.tray_icon:
             self.tray_icon.update_status(is_running)
@@ -375,10 +343,10 @@ class MainWindow(QMainWindow):
 
     def append_log_message(self, level: str, message: str) -> None:
         color_map = {
-            "SUCCESS": "#4caf50",
-            "INFO": "#2196f3",
-            "WARNING": "#ff9800",
-            "ERROR": "#f44336"
+            "SUCCESS": "#3cd070",
+            "INFO": "#58a6ff",
+            "WARNING": "#f0883e",
+            "ERROR": "#f85149"
         }
         color = color_map.get(level.upper(), "#ffffff")
         html = f"<span style='color: {color};'><b>[{level.upper()}]</b> {message}</span>"

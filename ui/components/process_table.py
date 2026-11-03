@@ -19,10 +19,16 @@ class ProcessTableWidget(QWidget):
 
     def _init_ui(self) -> None:
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(5, 5, 5, 5)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(8)
 
-        title_label = QLabel("<b>Processos em Execução no Windows</b>")
+        title_label = QLabel("Processos em Execução no Windows")
+        title_label.setProperty("heading", "true")
         layout.addWidget(title_label)
+
+        subtitle_label = QLabel("Selecione ou clique duas vezes para adicionar à lista de alvos.")
+        subtitle_label.setProperty("subtitle", "true")
+        layout.addWidget(subtitle_label)
 
         # Filter bar
         filter_layout = QHBoxLayout()
@@ -43,6 +49,7 @@ class ProcessTableWidget(QWidget):
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.table.verticalHeader().setVisible(False)
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
@@ -52,11 +59,11 @@ class ProcessTableWidget(QWidget):
         # Action bar
         action_layout = QHBoxLayout()
         self.status_count_label = QLabel("Total: 0 processos")
+        self.status_count_label.setProperty("subtitle", "true")
         action_layout.addWidget(self.status_count_label)
         action_layout.addStretch()
 
         self.btn_add_to_targets = QPushButton("🎯 Adicionar aos Alvos")
-        self.btn_add_to_targets.setStyleSheet("font-weight: bold; padding: 6px 12px;")
         self.btn_add_to_targets.clicked.connect(self._on_add_clicked)
         action_layout.addWidget(self.btn_add_to_targets)
 

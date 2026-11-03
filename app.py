@@ -11,6 +11,7 @@ from core.autostart import WindowsAutostart
 from core.logger import setup_app_logger
 from ui.tray import HunterTrayIcon
 from ui.main_window import MainWindow
+from ui.theme import apply_dark_theme
 
 
 def main() -> int:
@@ -20,6 +21,7 @@ def main() -> int:
 
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
+    apply_dark_theme(app)
 
     # 1. Single Instance Lock
     lock_path = Path(QDir.tempPath()) / "processhunter_instance.lock"
